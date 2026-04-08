@@ -1,5 +1,7 @@
 import sys
-from typing import List, Tuple, Dict
+import re
+import os
+from typing import List, Tuple, Dict, Optional
 
 from PyQt6.QtWidgets import (
     QApplication,
@@ -14,7 +16,10 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QTextEdit,
     QHeaderView,
+    QFileDialog,
+    QCheckBox,
 )
+from PyQt6.QtCore import Qt
 
 
 def va_combined_rating_detailed(ratings: List[float]) -> Tuple[int, List[Dict]]:
@@ -53,11 +58,11 @@ def va_combined_rating_detailed(ratings: List[float]) -> Tuple[int, List[Dict]]:
             "remaining_before": remaining,
             "added": added,
             "combined_before_round": before_round_combined,
-            "combined_after_round": combined,
+            "combined_after_round": None,
         })
 
     # Clamp between 0 and 100
-    combined = min(100, max(0, int(round(combined))))
+    combined = before_round_combined
 
     # Final rounding to nearest 10 (5 rounds up)
     remainder = combined % 10
@@ -65,20 +70,106 @@ def va_combined_rating_detailed(ratings: List[float]) -> Tuple[int, List[Dict]]:
         final = combined + (10 - remainder)
     else:
         final = combined - remainder
+    
+    if steps:
+        steps[-1]["combined_after_round"] = int(final)
 
     return int(final), steps
+
+
+def parse_va_pdf(pdf_path: str) -> Tuple[List[Tuple[str, float]], Optional[str]]:
+    """
+    Parse a VA rating decision PDF and extract conditions with their ratings.
+
+    Args:
+        pdf_path: Path to the VA PDF file
+
+    Returns:
+        conditions: List of (condition_name, rating) tuples for compensable (>0) ratings
+        error: Error message string, or None on success
+    """
+    try:
+        from pypdf import PdfReader
+    except ImportError:
+        return [], "pypdf is not installed. Run: pip install pypdf"
+
+    try:
+        r = PdfReader(pdf_path)
+    except Exception as e:
+        return [], f"Could not open PDF: {e}"
+
+    full_text = ""
+    for page in r.pages:
+        full_text += page.extract_text() + "\n"
+
+    # Find the DECISION section (present in Rating Decision pages)
+    decision_match = re.search(r"\bDECISION\b\s*\n(.+?)(?:EVIDENCE|REASONS FOR DECISION)", full_text, re.DOTALL)
+    if not decision_match:
+        return [], "Could not find a DECISION section in the PDF. Make sure this is a VA Rating Decision letter."
+
+    decision_text = decision_match.group(1)
+
+    # Split on numbered items like "1. Service connection for ..."
+    lines = decision_text.split("\n")
+    blocks = []
+    current = ""
+    for line in lines:
+        if re.match(r"^\d+\.\s+Service connection", line.strip()):
+            if current:
+                blocks.append(current)
+            current = line.strip()
+        else:
+            current += " " + line.strip()
+    if current:
+        blocks.append(current)
+
+    conditions = []
+    seen = set()
+    for block in blocks:
+        m = re.search(
+            r"Service connection for (.+?) is granted with an evaluation of (\d+) percent",
+            block,
+        )
+        if m:
+            cond = re.sub(r"\s+", " ", m.group(1)).strip()
+            # Strip parenthetical "claimed as ..." suffix
+            cond = re.sub(r"\s*\(claimed as .+?\)\s*$", "", cond, flags=re.IGNORECASE).strip()
+            # Normalize capitalization
+            cond = cond[0].upper() + cond[1:] if cond else cond
+            rating = int(m.group(2))
+            key = cond.lower()
+            if key not in seen:
+                seen.add(key)
+                conditions.append((cond, float(rating)))
+
+    if not conditions:
+        return [], "No service-connected conditions found in the DECISION section."
+
+    return conditions, None
 
 
 class VaMathApp(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("VA Combined Rating Calculator")
-        self.resize(700, 500)
-
+        self.resize(750, 600)
         self._build_ui()
 
     def _build_ui(self):
         main_layout = QVBoxLayout(self)
+
+        # --- PDF import row ---
+        pdf_layout = QHBoxLayout()
+        load_button = QPushButton("Load Conditions from PDF...")
+        load_button.clicked.connect(self._browse_and_load_pdf)
+        pdf_layout.addWidget(load_button)
+        pdf_layout.addStretch()
+        main_layout.addLayout(pdf_layout)
+
+        # --- Checkbox: include 0% conditions ---
+        self.include_zero_cb = QCheckBox("Include 0% (non-compensable) conditions when loading PDF")
+        self.include_zero_cb.setChecked(False)
+        main_layout.addWidget(self.include_zero_cb)
 
         # --- Input row: condition name + rating + add button ---
         input_layout = QHBoxLayout()
@@ -126,14 +217,69 @@ class VaMathApp(QWidget):
         main_layout.addLayout(button_row)
 
         # --- Result display ---
+        result_row = QHBoxLayout()
         self.result_label = QLabel("Combined Rating: -- %")
         self.result_label.setStyleSheet("font-size: 18px; font-weight: bold;")
-        main_layout.addWidget(self.result_label)
+        self.actual_label = QLabel("Actual: -- %")
+        self.actual_label.setStyleSheet("font-size: 14px; font-weight: bold; color: #555;")
+        self.remaining_label = QLabel("Remaining to 100%: -- %")
+        self.remaining_label.setStyleSheet("font-size: 14px; font-weight: bold; color: #555;")
+        result_row.addWidget(self.result_label)
+        result_row.addSpacing(20)
+        result_row.addWidget(self.actual_label)
+        result_row.addSpacing(20)
+        result_row.addWidget(self.remaining_label)
+        result_row.addStretch()
+        main_layout.addLayout(result_row)
 
         self.details_box = QTextEdit()
         self.details_box.setReadOnly(True)
         self.details_box.setPlaceholderText("Calculation steps will appear here...")
         main_layout.addWidget(self.details_box)
+
+    # ----------------------------
+    #      PDF Loading
+    # ----------------------------
+
+    def _browse_and_load_pdf(self):
+        pdf_path, _ = QFileDialog.getOpenFileName(
+            self, "Select VA Rating Decision PDF", "", "PDF Files (*.pdf);;All Files (*)"
+        )
+        if not pdf_path:
+            return
+
+        conditions, error = parse_va_pdf(pdf_path)
+        if error:
+            QMessageBox.critical(self, "PDF Parse Error", error)
+            return
+
+        include_zero = self.include_zero_cb.isChecked()
+        filtered = [(c, r) for c, r in conditions if include_zero or r > 0]
+
+        if not filtered:
+            msg = "No compensable (>0%) conditions found in the PDF."
+            if not include_zero:
+                msg += "\n\nTip: Check 'Include 0% conditions' if you want to load all service-connected conditions."
+            QMessageBox.information(self, "No Conditions Found", msg)
+            return
+
+        # Clear existing rows and populate from PDF
+        self.table.setRowCount(0)
+        self.result_label.setText("Combined Rating: -- %")
+        self.details_box.clear()
+
+        for condition, rating in filtered:
+            row = self.table.rowCount()
+            self.table.insertRow(row)
+            self.table.setItem(row, 0, QTableWidgetItem(condition))
+            self.table.setItem(row, 1, QTableWidgetItem(str(int(rating))))
+
+        total = len(filtered)
+        zero_count = sum(1 for _, r in filtered if r == 0)
+        msg = f"Loaded {total} condition(s) from PDF."
+        if zero_count and include_zero:
+            msg += f"\n({zero_count} with 0% rating - these won't affect the combined score.)"
+        QMessageBox.information(self, "PDF Loaded", msg)
 
     # ----------------------------
     #      Actions / Handlers
@@ -153,7 +299,7 @@ class VaMathApp(QWidget):
             QMessageBox.warning(self, "Input Error", "Rating must be a number.")
             return
 
-        if rating <= 0 or rating > 100:
+        if rating < 0 or rating > 100:
             QMessageBox.warning(self, "Input Error", "Rating must be between 0 and 100.")
             return
 
@@ -182,6 +328,8 @@ class VaMathApp(QWidget):
     def clear_all(self):
         self.table.setRowCount(0)
         self.result_label.setText("Combined Rating: -- %")
+        self.actual_label.setText("Actual: -- %")
+        self.remaining_label.setText("Remaining to 100%: -- %")
         self.details_box.clear()
 
     def calculate_rating(self):
@@ -208,7 +356,7 @@ class VaMathApp(QWidget):
                 )
                 return
 
-            if rating <= 0 or rating > 100:
+            if rating < 0 or rating > 100:
                 QMessageBox.warning(
                     self,
                     "Data Error",
@@ -225,8 +373,14 @@ class VaMathApp(QWidget):
 
         final_rating, steps = va_combined_rating_detailed(ratings)
 
-        # Update main result label
-        self.result_label.setText(f"Combined Rating: {final_rating} %")
+        # Compute actual (unrounded) combined value from the last step
+        actual = steps[-1]["combined_before_round"] if steps else 0.0
+        remaining = 95.0 - actual
+
+        # Update result labels
+        self.result_label.setText(f"Combined Rating: {final_rating}%")
+        self.actual_label.setText(f"Actual: {actual:.2f}%")
+        self.remaining_label.setText(f"Remaining to 95%: {remaining:.2f}%")
 
         # Build a nice readable step-by-step breakdown
         details_lines = []
@@ -237,13 +391,16 @@ class VaMathApp(QWidget):
             details_lines.append(f"  - {name}: {r:.0f}%")
         details_lines.append("")
 
-        details_lines.append("Calculation Steps:")
+        # Build a lookup from rating order (steps are sorted by rating descending)
+        sorted_conditions = sorted(conditions, key=lambda x: x[1], reverse=True)
+
+        details_lines.append("Calculation Steps (0% conditions are excluded from math):")
         for idx, step in enumerate(steps, start=1):
-            details_lines.append(f"Step {idx}: {step['rating']:.0f}% condition")
+            cond_name = sorted_conditions[idx - 1][0] if idx - 1 < len(sorted_conditions) else "Unknown"
+            details_lines.append(f"Step {idx}: {step['rating']:.0f}% - {cond_name}")
             details_lines.append(f"  Remaining before: {step['remaining_before']:.2f}%")
             details_lines.append(f"  Added: {step['added']:.2f}%")
-            details_lines.append(f"  Combined before round: {step['combined_before_round']:.2f}%")
-            details_lines.append(f"  Combined after round: {step['combined_after_round']}%")
+            details_lines.append(f"  Actual percentage: {step['combined_before_round']:.2f}%")
             details_lines.append("")
 
         details_lines.append(f"Final VA combined rating (rounded to nearest 10): {final_rating}%")
@@ -254,6 +411,18 @@ class VaMathApp(QWidget):
 def main():
     app = QApplication(sys.argv)
     window = VaMathApp()
+
+    # Auto-load PDF if passed as command-line argument
+    if len(sys.argv) > 1 and os.path.exists(sys.argv[1]):
+        conditions, error = parse_va_pdf(sys.argv[1])
+        if not error:
+            for condition, rating in conditions:
+                if rating > 0:
+                    row = window.table.rowCount()
+                    window.table.insertRow(row)
+                    window.table.setItem(row, 0, QTableWidgetItem(condition))
+                    window.table.setItem(row, 1, QTableWidgetItem(str(int(rating))))
+
     window.show()
     sys.exit(app.exec())
 
