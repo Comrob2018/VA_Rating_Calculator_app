@@ -50,6 +50,7 @@ python va_math_gui.py
 
 The GUI will launch, allowing you to load your conditions from your pdf decision letter and break down your rating into steps.
 Once you have all your ratings loaded, you can add new ones or change percentages to see how you get that percentage up to 100%.
+
 Before selecting a PDF decision letter:
 
 
