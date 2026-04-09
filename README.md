@@ -1,6 +1,6 @@
 📘 VA Combined Rating Calculator (GUI App)
 
-A simple, clean, and accurate VA Disability Combined Rating Calculator built in Python + PyQt6.
+A simple, clean, and accurate VA Disability Combined Rating Calculator built in Python + PyQt6.  
 This tool allows veterans to easily input individual condition ratings and compute their official VA combined disability rating, following actual VA math rules.
 
 Includes:
