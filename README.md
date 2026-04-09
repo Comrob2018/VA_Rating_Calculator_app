@@ -5,12 +5,12 @@ This tool allows veterans to easily input individual condition ratings and compu
 
 Includes:
 
-✔️ Easy-to-use GUI
-✔️ Step-by-step calculation breakdown
-✔️ Automatic VA rounding rules
-✔️ Add, remove, and clear conditions
-✔️ Packagable as a Windows .exe
-✔️ Custom VA% icon included
+✔️ Easy-to-use GUI  
+✔️ Step-by-step calculation breakdown  
+✔️ Automatic VA rounding rules  
+✔️ Add, remove, and clear conditions  
+✔️ Packagable as a Windows .exe  
+✔️ Custom VA% icon included  
 
 🖥️ Features  
 ⭐ VA Math Engine  
