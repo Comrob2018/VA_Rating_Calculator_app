@@ -69,6 +69,12 @@ Breakdown section:
 <img width="732" height="249" alt="Screenshot 2026-04-08 214204" src="https://github.com/user-attachments/assets/ffcb9782-b427-46d1-b36d-3f7c33d10c42" />
 
 
+Calculation Steps:
+
+
+<img width="326" height="298" alt="image" src="https://github.com/user-attachments/assets/15f49347-0199-46d8-be80-b367084b55fd" />
+
+
 🧮 How VA Math Is Calculated
 Conditions are sorted from highest to lowest.
 Each rating is applied to the remaining efficiency (starting at 100%).
