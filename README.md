@@ -6,46 +6,29 @@ This tool allows veterans to easily input individual condition ratings and compu
 Includes:
 
 ✔️ Easy-to-use GUI
-
 ✔️ Step-by-step calculation breakdown
-
 ✔️ Automatic VA rounding rules
-
 ✔️ Add, remove, and clear conditions
-
 ✔️ Packagable as a Windows .exe
-
 ✔️ Custom VA% icon included
 
 🖥️ Features
 ⭐ VA Math Engine
-
 The calculator follows official VA math rules:
-
 Ratings sorted high → low
-
 Weighted addition based on remaining efficiency
-
 Rounding at every step
-
 Final rounding to nearest 10% (5 rounds up)
 
 ⭐ GUI Application
-
 Add condition names and ratings
-
 Remove selected conditions
-
 Clear all inputs
-
 See a full breakdown of each VA math step
-
 Final combined rating shown clearly at the top
 
 ⭐ Standalone EXE
-
 You can package the program as a portable Windows executable using PyInstaller:
-
 pyinstaller --onefile --windowed --icon=va_icon.ico va_math_gui.py
 
 📦 Installation
@@ -54,33 +37,27 @@ git clone https://github.com/YourUsername/va-combined-rating-calculator.git
 cd va-combined-rating-calculator
 
 2. Install Dependencies
-
 It’s recommended to use a virtual environment.
-
 pip install -r requirements.txt
 
-
 requirements.txt example:
-
 PyQt6
-
 
 (PyInstaller is optional unless you want to build an .exe.)
 
 ▶️ Running the Program
 python va_math_gui.py
 
+The GUI will launch, allowing you to load your conditions from your pdf decision letter and break down your rating into steps.
+Once you have all your ratings loaded, you can add new ones or change percentages to see how you get that percentage up to 100%.
+<img width="739" height="621" alt="image" src="https://github.com/user-attachments/assets/f2595f16-3e8c-4200-8363-1984838e6b81" />
 
-The GUI will launch, allowing you to enter conditions and compute your rating.
+
 
 🧮 How VA Math Is Calculated
-
 Conditions are sorted from highest to lowest.
-
 Each rating is applied to the remaining efficiency (starting at 100%).
-
 After each step, total is rounded.
-
 Final result is rounded to the nearest 10.
 
 Example:
@@ -88,28 +65,19 @@ Ratings = 50%, 30%, 10%
 Final Combined = 70%
 
 The app shows this breakdown in detail.
-
 🛠️ Building a Windows EXE (Optional)
-
 Install PyInstaller:
-
 pip install pyinstaller
-
-
 Build the executable:
-
 pyinstaller --onefile --windowed --icon=va_icon.ico va_math_gui.py
 
 
 The compiled app will appear in:
-
 dist/va_math_gui.exe
-
 
 You can now distribute this .exe to anyone—no Python required.
 
 🖼️ Custom App Icon
-
 The repository includes a VA-style logo (VA%) for use as the app icon.
 
 Use it with PyInstaller:
@@ -128,19 +96,12 @@ If you need additional icon styles or resolutions, let me know—I can generate 
 🤝 Contributing
 
 PRs are welcome—particularly if you want to add:
-
-Bilateral factor calculations
-
 Multi-condition grouping
-
 Export to PDF/CSV
-
 macOS/Linux builds
-
 Settings / preferences
 
 📄 License
-
 MIT License — free to use, modify, and distribute.
 
 🪖 Made for Veterans
