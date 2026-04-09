@@ -51,12 +51,20 @@ python va_math_gui.py
 The GUI will launch, allowing you to load your conditions from your pdf decision letter and break down your rating into steps.
 Once you have all your ratings loaded, you can add new ones or change percentages to see how you get that percentage up to 100%.
 Before selecting a PDF decision letter:
+
+
 <img width="739" height="621" alt="image" src="https://github.com/user-attachments/assets/f2595f16-3e8c-4200-8363-1984838e6b81" />
 
+
 Ratings loaded into table:
+
+
 <img width="729" height="228" alt="Screenshot 2026-04-08 214147" src="https://github.com/user-attachments/assets/2ecfa7cf-c6e9-45e2-a3b4-0eb6d71677fd" />
 
+
 Breakdown section: 
+
+
 <img width="732" height="249" alt="Screenshot 2026-04-08 214204" src="https://github.com/user-attachments/assets/ffcb9782-b427-46d1-b36d-3f7c33d10c42" />
 
 
